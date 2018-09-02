@@ -1337,19 +1337,29 @@ pub extern "system" fn librustzcash_sapling_spend_proof(
     // Grab `ak` from the caller, which should be a point.
     let ak = match edwards::Point::<Bls12, Unknown>::read(&(unsafe { &*ak })[..], &JUBJUB) {
         Ok(p) => p,
-        Err(_) => return false,
+        Err(_) => {
+            eprintln!("Failed match ak with edwards point");
+            return false;
+        },
     };
 
     // `ak` should be prime order.
     let ak = match ak.as_prime_order(&JUBJUB) {
         Some(p) => p,
-        None => return false,
+        None => {
+            eprintln!("Failed match ak with JUBJUB as_prime_order");
+            return false;
+        },
     };
 
     // Grab `nsk` from the caller
     let nsk = match Fs::from_repr(read_fs(&(unsafe { &*nsk })[..])) {
         Ok(p) => p,
-        Err(_) => return false,
+        Err(e) => {
+            println!("Failed match nsk with something");
+            println!("Error: {}", e);
+            return false
+        }
     };
 
     // Construct the proof generation key
@@ -1367,19 +1377,28 @@ pub extern "system" fn librustzcash_sapling_spend_proof(
     // Construct the payment address with the viewing key / diversifier
     let payment_address = match viewing_key.into_payment_address(diversifier, &JUBJUB) {
         Some(p) => p,
-        None => return false,
+        None => {
+            eprintln!("Failed viewing_key diversifier something");
+            return false;
+        },
     };
 
     // The caller chooses the note randomness
     let rcm = match Fs::from_repr(read_fs(&(unsafe { &*rcm })[..])) {
         Ok(p) => p,
-        Err(_) => return false,
+        Err(_) => {
+            eprintln!("Failed match rcm with read_fs");
+            return false;
+        },
     };
 
     // The caller also chooses the re-randomization of ak
     let ar = match Fs::from_repr(read_fs(&(unsafe { &*ar })[..])) {
         Ok(p) => p,
-        Err(_) => return false,
+        Err(_) => {
+            eprintln!("Failed match ar with read_fs");
+            return false;
+        },
     };
 
     // This is the result of the re-randomization, we compute it for the caller
@@ -1396,7 +1415,10 @@ pub extern "system" fn librustzcash_sapling_spend_proof(
     // We need to compute the anchor of the Spend.
     let anchor = match Fr::from_repr(read_le(unsafe { &(&*anchor)[..] })) {
         Ok(p) => p,
-        Err(_) => return false,
+        Err(_) => {
+            eprintln!("Failed match anchor with read_fs");
+            return false;
+        },
     };
 
     // The witness contains the incremental tree witness information, in a
@@ -1425,7 +1447,10 @@ pub extern "system" fn librustzcash_sapling_spend_proof(
         // Sibling node should be an element of Fr
         let sibling = match Fr::from_repr(read_le(&sibling)) {
             Ok(p) => p,
-            Err(_) => return false,
+            Err(_) => {
+                eprintln!("Failed match sibling with read_fs");
+                return false;
+            },
         };
 
         // Set the value in the auth path; we put false here
@@ -1518,10 +1543,16 @@ pub extern "system" fn librustzcash_sapling_spend_proof(
         // No error, and proof verification successful
         Ok(true) => {}
 
-        // Any other case
-        _ => {
+        Err(e) => {
+            eprintln!("Failed verifying proof with {}", e);
             return false;
         }
+        // Any other case
+        _ => {
+            eprintln!("Failed verifying proof...");
+            return false;
+        }
+
     }
 
     // Compute value commitment
